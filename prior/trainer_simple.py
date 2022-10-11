@@ -138,7 +138,7 @@ class ImageDataset(torch.utils.data.Dataset):
         ])
 
     def __len__(self):
-        return len(self.paths)
+        return len(self.image_files)
 
     def __getitem__(self, index):
         return self.get_image(index)
