@@ -330,7 +330,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         with sched_context():
             self.scheduler.step()
 
-        if not (self.step & self.save_model_every):
+        if not (self.step % self.save_model_every):
             self.save(str(self.results_folder) + '/model.ckpt')
 
         self.step += 1
