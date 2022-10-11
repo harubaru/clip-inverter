@@ -5,8 +5,8 @@ from prior.encoders import FrozenCLIPTextEmbedder, FrozenCLIPVisionEmbedder
 prior = FeatureInverter()
 trainer = FeatureInverterTrainer(
     prior,
-    txt_enc=FrozenCLIPTextEmbedder(),
-    img_enc=FrozenCLIPVisionEmbedder(),
+    txt_enc=FrozenCLIPTextEmbedder(device='cpu'),
+    img_enc=FrozenCLIPVisionEmbedder(device='cpu'),
     folder='../dataset',
     null_cond='',
     device='cpu',

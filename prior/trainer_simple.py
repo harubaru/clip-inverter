@@ -317,7 +317,7 @@ class FeatureInverterTrainer(torch.nn.Module):
 
     def train(self, log_fn = None):
         while self.step.item() < self.num_train_steps:
-            logs = self.train_step
+            logs = self.train_step()
             if log_fn == None:
                 print(f'{logs["step"]}: loss: {logs["loss"]}')
         
