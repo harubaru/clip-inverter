@@ -125,7 +125,7 @@ class ImageDataset(torch.utils.data.Dataset):
         return len(self.paths)
 
     def __getitem__(self, index):
-        return self.get_image(i)
+        return self.get_image(index)
 
     def get_image(self, i):
         image = {}
@@ -284,7 +284,7 @@ class FeatureInverterTrainer(torch.nn.Module):
 
         return loaded_obj
 
-    def step(self):
+    def train_step(self):
         logs = {'step': self.step.item()}
 
         for _ in range(self.grad_accum_every):
