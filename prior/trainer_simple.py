@@ -107,7 +107,7 @@ class ImageDataset(torch.utils.data.Dataset):
         image_size,
         txt_enc,
         img_enc,
-        ext = ['image', 'caption']
+        ext = ['image']
     ):
         super().__init__()
         self.folder = folder
@@ -247,7 +247,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         self.img_enc = img_enc.to(self.device)
         self.num_train_steps = num_train_steps
 
-        self.null_cond = self.txt_enc.encode([null_cond]).to(self.device)
+        self.null_cond = self.txt_enc.encode([null_cond]*batch_size).to(self.device)
 
         if len([*self.results_folder.glob('**/*')]) > 0 and yes_or_no('do you want to clear previous experiment checkpoints and results?'):
             rmtree(str(self.results_folder))
@@ -315,7 +315,7 @@ class FeatureInverterTrainer(torch.nn.Module):
             emb = self.txt_enc.encode(batch['caption']).to(self.device)
             with torch.cuda.amp.autocast(enabled = self.amp):
                 loss = self.prior(
-                    img[0], emb[0], self.null_cond, True
+                    img[0], emb, self.null_cond, True
                 )
 
                 self.scaler.scale(loss / self.grad_accum_every).backward()
