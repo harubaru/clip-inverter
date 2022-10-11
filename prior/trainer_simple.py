@@ -154,6 +154,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         device = None,
         batch_size = 4,
         grad_accum_every = 1,
+        num_train_steps = 100000,
         lr = 3e-4,
         wd = 1e-2,
         eps = 1e-6,
@@ -222,6 +223,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         self.results_folder = Path(results_folder)
         self.txt_enc = txt_enc.to(self.device)
         self.img_enc = img_enc.to(self.device)
+        self.num_train_steps = num_train_steps
 
         self.null_cond = self.txt_enc.encode(null_cond).to(self.device)
 
@@ -314,7 +316,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         return logs
 
     def train(self, log_fn = None):
-        while self.steps < self.num_train_steps:
+        while self.step.item() < self.num_train_steps:
             logs = self.train_step
             if log_fn == None:
                 print(f'{logs["step"]}: loss: {logs["loss"]}')
