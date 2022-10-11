@@ -133,9 +133,10 @@ class ImageDataset(torch.utils.data.Dataset):
             torchvision.transforms.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
             torchvision.transforms.Resize(image_size),
             torchvision.transforms.RandomHorizontalFlip(),
-            torchvision.transforms.CenterCrop(image_size),
-            torchvision.transforms.ToTensor()
+            torchvision.transforms.CenterCrop(image_size)
         ])
+
+        self.captionprocessor = CaptionProcessor(1.0, 1.0, 1.0, 1.0, True, True, self.transform, 768, False, True)
 
     def __len__(self):
         return len(self.image_files)
