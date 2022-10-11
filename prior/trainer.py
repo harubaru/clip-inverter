@@ -5,7 +5,7 @@ from accelerate import Accelerator
 from pathlib import Path
 from prior.net import FeatureInverter
 from prior.version import __version__
-from helpers import *
+from prior.helpers import *
 
 from packaging import version
 
