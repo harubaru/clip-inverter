@@ -55,7 +55,7 @@ class CaptionProcessor(object):
         self.max_size = max_size
         self.resize = resize
         self.random_order = random_order
-    
+
     def clean(self, text: str):
         text = ' '.join(set([i.lstrip('_').rstrip('_') for i in re.sub(r'\([^)]*\)', '', text).split(' ')])).lstrip().rstrip()
         if self.caption_shuffle:
@@ -96,7 +96,7 @@ class CaptionProcessor(object):
 
         # preprocess image
         image = sample['image']
-        image = PIL.Image.open(io.BytesIO(image))
+        image = PIL.Image.open(io.BytesIO(image)).convert('RGB')
         sample['image'] = self.transforms(image)
         return sample
 
@@ -105,11 +105,15 @@ class ImageDataset(torch.utils.data.Dataset):
         self,
         folder,
         image_size,
+        txt_enc,
+        img_enc,
         ext = ['image', 'caption']
     ):
         super().__init__()
         self.folder = folder
         self.image_size = image_size
+        self.txt_enc = txt_enc
+        self.img_enc = img_enc
 
         print('Fetching data.')
 
@@ -133,7 +137,8 @@ class ImageDataset(torch.utils.data.Dataset):
             torchvision.transforms.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
             torchvision.transforms.Resize(image_size),
             torchvision.transforms.RandomHorizontalFlip(),
-            torchvision.transforms.CenterCrop(image_size)
+            torchvision.transforms.CenterCrop(image_size),
+            torchvision.transforms.Lambda(lambda img: img_enc.encode(img))
         ])
 
         self.captionprocessor = CaptionProcessor(1.0, 1.0, 1.0, 1.0, True, True, self.transform, 768, False, True)
@@ -148,7 +153,7 @@ class ImageDataset(torch.utils.data.Dataset):
         image = {}
         try:
             image_file = self.examples[self.hashes[i]]['image']
-            with open(image_file, 'rb') as f:
+            with open(image_file.replace('.caption', '.image'), 'rb') as f:
                 image['image'] = f.read()
             text_file = self.examples[self.hashes[i]]['text']
             with open(text_file, 'rb') as f:
@@ -158,7 +163,7 @@ class ImageDataset(torch.utils.data.Dataset):
             print(f'Error with {self.examples[self.hashes[i]]["image"]} -- {e} -- skipping {i}')
             return self.skip_sample(i)
 
-        return image['image'], image['caption']
+        return image
 
 class FeatureInverterTrainer(torch.nn.Module):
     def __init__(
@@ -209,7 +214,7 @@ class FeatureInverterTrainer(torch.nn.Module):
 
         self.step = torch.tensor([0], device=self.device)
 
-        self.ds = ImageDataset(folder, image_size=224)
+        self.ds = ImageDataset(folder, image_size=224, txt_enc=txt_enc, img_enc=img_enc)
 
         if valid_frac > 0:
             train_size = int((1 - valid_frac) * len(self.ds))
@@ -242,7 +247,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         self.img_enc = img_enc.to(self.device)
         self.num_train_steps = num_train_steps
 
-        self.null_cond = self.txt_enc.encode(null_cond).to(self.device)
+        self.null_cond = self.txt_enc.encode([null_cond]).to(self.device)
 
         if len([*self.results_folder.glob('**/*')]) > 0 and yes_or_no('do you want to clear previous experiment checkpoints and results?'):
             rmtree(str(self.results_folder))
@@ -267,7 +272,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         )
 
         torch.save(save_obj, str(path))
-    
+
     def load(self, path_or_state, overwrite_lr = True, strict = True):
         # all processes need to load checkpoint. no restriction here
         if isinstance(path_or_state, str):
@@ -305,17 +310,16 @@ class FeatureInverterTrainer(torch.nn.Module):
         logs = {'step': self.step.item()}
 
         for _ in range(self.grad_accum_every):
-            img, emb = next(self.dl)
-            img = self.img_enc.encode(img.to(self.device))
-            emb = self.txt_enc.encode(emb.to(self.device))
-
+            batch = next(self.dl)
+            img = batch['image'].to(self.device)
+            emb = self.txt_enc.encode(batch['caption']).to(self.device)
             with torch.cuda.amp.autocast(enabled = self.amp):
                 loss = self.prior(
-                    img, emb, self.null_cond, True
+                    img[0], emb[0], self.null_cond, True
                 )
 
                 self.scaler.scale(loss / self.grad_accum_every).backward()
-            
+
             accum_log(logs, {'loss': loss.item() / self.grad_accum_every})
 
         self.scaler.step(self.optimizer)
@@ -325,9 +329,9 @@ class FeatureInverterTrainer(torch.nn.Module):
         sched_context = self.warmup_scheduler.dampening if exists(self.warmup_scheduler) else nullcontext
         with sched_context():
             self.scheduler.step()
-        
+
         if not (self.step & self.save_model_every):
-            self.save(self.results_folder)
+            self.save(str(self.results_folder) + '/model.ckpt')
 
         self.step += 1
         return logs
@@ -337,5 +341,5 @@ class FeatureInverterTrainer(torch.nn.Module):
             logs = self.train_step()
             if log_fn == None:
                 print(f'{logs["step"]}: loss: {logs["loss"]}')
-        
+
         print('training complete')
