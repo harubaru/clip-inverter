@@ -113,12 +113,12 @@ class ImageDataset(torch.utils.data.Dataset):
 
         print(f'{len(self.paths)} training samples found at {folder}')
 
-        self.transform = torchvision.transforms.T.Compose([
-            torchvision.transforms.T.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
-            torchvision.transforms.T.Resize(image_size),
-            torchvision.transforms.T.RandomHorizontalFlip(),
-            torchvision.transforms.T.CenterCrop(image_size),
-            torchvision.transforms.T.ToTensor()
+        self.transform = torchvision.transforms.Compose([
+            torchvision.transforms.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
+            torchvision.transforms.Resize(image_size),
+            torchvision.transforms.RandomHorizontalFlip(),
+            torchvision.transforms.CenterCrop(image_size),
+            torchvision.transforms.ToTensor()
         ])
 
     def __len__(self):
@@ -190,7 +190,7 @@ class FeatureInverterTrainer(torch.nn.Module):
         self.amp = amp
         self.scaler = torch.cuda.amp.GradScaler(enabled=amp)
 
-        self.register_buffer('step', torch.tensor([0], device=self.device))
+        self.step = torch.tensor([0], device=self.device)
 
         self.ds = ImageDataset(folder, image_size=224)
 
