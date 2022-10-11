@@ -1,3 +1,4 @@
+import glob
 import torch
 import torchvision
 import pytorch_warmup
@@ -104,15 +105,30 @@ class ImageDataset(torch.utils.data.Dataset):
         self,
         folder,
         image_size,
-        exts = ['image']
+        ext = ['image', 'caption']
     ):
         super().__init__()
         self.folder = folder
         self.image_size = image_size
-        self.paths = [p for ext in exts for p in Path(f'{folder}').glob(f'*.{ext}')]
 
-        print(f'{len(self.paths)} training samples found at {folder}')
+        print('Fetching data.')
 
+        self.image_files = []
+        [self.image_files.extend(glob.glob(f'{folder}' + '/*.' + e)) for e in ext]
+
+        print(f'Constructing image-caption map. Found {len(self.image_files)} images')
+
+        self.examples = {}
+        self.hashes = []
+        for i in self.image_files:
+            hash = i[len(f'{folder}/'):].split('.')[0]
+            self.examples[hash] = {
+                'image': i,
+                'text': f'{folder}/{hash}.caption'
+            }
+            self.hashes.append(hash)
+
+        print(f'image-caption map has {len(self.examples.keys())} examples')
         self.transform = torchvision.transforms.Compose([
             torchvision.transforms.Lambda(lambda img: img.convert('RGB') if img.mode != 'RGB' else img),
             torchvision.transforms.Resize(image_size),
